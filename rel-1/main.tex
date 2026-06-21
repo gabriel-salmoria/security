@@ -1,0 +1,67 @@
+\newif\ifadvisor\advisorfalse
+\newcommand{\advisor}[2]{\ifadvisor#1\else#2\fi}
+\newcommand{\brazilword}[1]{#1}
+
+\PassOptionsToPackage{main=brazil,english}{babel}
+
+\documentclass[
+brazilian,brazil,
+12pt,
+a4paper,
+oneside,
+chapter=TITLE,
+section=TITLE,
+]{setup/ufscthesisx}
+
+\addbibresource{references.bib}
+
+\autor{Gabriel Salmoria}
+\titulo{[Título do Trabalho]}
+\tipotrabalho{Relatório Parcial}
+\local{Florianópolis -- SC}
+\ano{2026}
+\data{Junho de 2026}
+\instituicaosigla{UFSC}
+\instituicao{Universidade Federal de Santa Catarina}
+\area{Segurança em Computação}
+\centro{INE -- Departamento de Informática e Estatística, CTC -- Centro Tecnológico}
+\campus{Campus Reitor João David Ferreira Lima}
+\orientador[Professores]{Jean Martina e Thaís Bardini Idalino}
+
+\hypersetup{
+    pdfcreator={LaTeX with abnTeX2 for UFSC},
+    pdftitle={\imprimirtitulo},
+    pdfauthor={\imprimirautor},
+}
+
+\input{settings.tex}
+
+\newif\ifforcedinclude\forcedincludefalse
+\emergencystretch=5em
+
+\begin{document}
+    \frenchspacing
+    \pretextual
+    \imprimircapa
+    \tableofcontents
+
+    \textual
+    \setlength\beforechapskip{50pt}
+    \setlength\midchapskip{20pt}
+    \setlength\afterchapskip{20pt}
+
+    \include{chapters/introducao}
+    \include{chapters/fundamentacao}
+    \include{chapters/experimento}
+
+    \postextual
+    \setlength\beforechapskip{0pt}
+    \setlength\midchapskip{15pt}
+    \setlength\afterchapskip{15pt}
+
+    \begingroup
+        \setlength\bibitemsep{\baselineskip}
+        \printbibliography[title=REFERÊNCIAS]
+    \endgroup
+
+\end{document}
