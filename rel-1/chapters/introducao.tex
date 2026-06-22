@@ -1,3 +1,28 @@
 \chapter{Introdução}
 \label{cap:introducao}
 
+A criptografia de chave pública tradicional usa uma infraestrutura de certificados digitais,
+a PKI (\textit{Public Key Infrastructure}). Para cifrar uma mensagem a alguém, é preciso ter
+o certificado dessa pessoa, emitido por uma Autoridade Certificadora de
+confiança~\cite{menezes2009intro}. Na prática isso gera complicações: gerenciar certificados,
+lidar com revogação e, principalmente, precisar do certificado do destinatário antes de
+qualquer comunicação.
+
+A Criptografia Baseada em Identidade (IBE, do inglês \textit{Identity-Based Encryption}),
+proposta por Shamir em 1984 e construída por Boneh e Franklin em 2001~\cite{boneh2001ibe},
+resolve isso de outra forma. A chave pública de um usuário é simplesmente sua identidade,
+por exemplo seu endereço de e-mail. Qualquer um pode cifrar para \texttt{bob@ufsc.br} sem
+nunca ter interagido com Bob e sem precisar de certificados. Um \textit{Private Key Generator}
+(PKG) é quem gera e entrega a chave privada ao usuário, após verificar sua identidade.
+
+O esquema proposto por Boneh e Franklin, chamado \textbf{FullIdent}, usa emparelhamentos
+bilineares sobre curvas elípticas supersingulares e é provadamente seguro sob a noção
+IND-ID-CCA2 no modelo do oráculo aleatório, com base na dificuldade do problema de
+Diffie-Hellman Bilinear (BDH)~\cite{boneh2001ibe}.
+
+Neste trabalho, implementamos o \textbf{IBE Mail}: um cliente de e-mail com interface
+gráfica que mostra o funcionamento do FullIdent de ponta a ponta. A aplicação roda com
+múltiplas identidades na mesma máquina e inclui um PKG embutido para registro, autenticação
+e extração de chaves. Com ela dá pra ver na prática a cifragem sem contato prévio, o que
+acontece quando se tenta decifrar com a chave errada, e como funcionam as identidades
+temporais e a revogação.
