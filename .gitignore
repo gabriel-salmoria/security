@@ -24,3 +24,14 @@ implementation/third_party/src/
 implementation/third_party/imgui/
 implementation/build/
 implementation/ibemail
+
+# IBE Mail Implementation Build Configs
+implementation/obj/
+implementation/*.o
+implementation/*.out
+implementation/*.exe
+implementation/ibemail_app
+
+# IBE Mail Data files
+implementation/data/*
+!implementation/data/.gitkeep
