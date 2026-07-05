@@ -1,10 +1,32 @@
 \chapter{Implementação}
 \label{cap:implementacao}
 
-O sistema foi inteiramente implementado conforme a arquitetura descrita nas seções anteriores, passando por seis fases iterativas de desenvolvimento. A implementação está dividida nos três pilares planejados (\texttt{common}, \texttt{core} e \texttt{gui}) utilizando C++17 e um \texttt{Makefile} unificado na raiz do projeto.
+O sistema foi implementado utilizando a linguagem C++17 e gerenciado por um \texttt{Makefile} unificado na raiz do projeto. A aplicação \textbf{IBE Mail} funciona como um cliente de e-mail integrado a um gerador de chaves privadas (PKG), executando localmente sem necessidade de servidor externo.
 
-No pilar de primitivas (\texttt{common}), os algoritmos do FullIdent foram perfeitamente codificados sobre a biblioteca PBC, demonstrando um fluxo de criptografia seguro que respeita as regras matemáticas da curva elíptica supersingular e dos oráculos aleatórios através da separação de domínio (usando SHA-256 no OpenSSL).
+\section{Bibliotecas Utilizadas}
+\label{sec:bibliotecas}
 
-O pilar visual (\texttt{gui}), construído com Dear ImGui e SDL2, revelou-se um ponto forte do trabalho, permitindo uma demonstração prática bastante tangível das propriedades do IBE. A interface foi aprimorada com um tema gráfico customizado de alto contraste, e as caixas de correio foram expandidas em relação ao planejamento original com a adição de uma aba \textit{Sent} (Enviados), que exibe apenas os metadados das mensagens emitidas, uma vez que o remetente não possui a chave do destinatário para decifrá-las.
+O desenvolvimento apoiou-se no seguinte conjunto de bibliotecas e ferramentas:
 
-Durante o desenvolvimento prático da validação IND-ID-CCA2, foi identificado um desafio arquitetural na decodificação: a função de conversão Base64 quebrava o programa (lançando uma exceção nativa no sistema operacional) quando um caractere era forjado antes mesmo de chegar à etapa de verificação de Fujisaki-Okamoto no motor matemático. O problema foi sanado envelopando a lógica de leitura e decifragem com blocos \texttt{try/catch} para suportar cifrotextos corrompidos, fazendo com que a interface capture o erro de forma tolerante a falhas, demonstrando assim a rejeição do cifrotexto e exibindo a mensagem visual ao usuário.
+\begin{itemize}
+    \item \textbf{PBC (Pairing-Based Cryptography):} Biblioteca central do projeto, que provê as operações de emparelhamento bilinear sobre curvas elípticas supersingulares necessárias para o algoritmo de Boneh-Franklin.
+    \item \textbf{GMP (GNU Multiple Precision Arithmetic):} Utilizada como dependência fundamental da PBC para o tratamento de números inteiros de precisão arbitrária.
+    \item \textbf{OpenSSL (\texttt{libcrypto}):} Responsável por fornecer a função criptográfica de dispersão SHA-256, a qual foi adaptada com separação de domínio para modelar os quatro oráculos aleatórios ($H_1$ a $H_4$).
+    \item \textbf{Dear ImGui:} Biblioteca C++ de interface gráfica imediata (\textit{Immediate Mode GUI}), inserida diretamente no código-fonte do projeto.
+    \item \textbf{SDL2 e OpenGL 3:} Bibliotecas de baixo nível responsáveis pela criação da janela no sistema operacional, captura de eventos e aceleração por \textit{hardware} para a renderização gráfica do ImGui.
+\end{itemize}
+
+\section{Estrutura do Projeto}
+\label{sec:estrutura}
+
+A arquitetura do código está segmentada em módulos funcionais distintos dentro do diretório \texttt{implementation/}, garantindo a separação entre a matemática, a lógica de negócio e a interface:
+
+\begin{itemize}
+    \item \textbf{\texttt{src/common/}}: Contém as primitivas criptográficas puras. O arquivo \texttt{BonehFranklin} implementa os algoritmos \textit{Setup}, \textit{Extract}, \textit{Encrypt} e \textit{Decrypt}. O arquivo \texttt{Hash} envelopa as chamadas do OpenSSL, enquanto \texttt{Utils} manipula UUIDs, formatação Base64 e operações XOR.
+    
+    \item \textbf{\texttt{src/core/}}: Hospeda a lógica de negócio da aplicação. O módulo \texttt{PKG} gerencia o ciclo de vida dos usuários (registro, aprovação, extração e revogação de chaves), interagindo com o arquivo \texttt{registry.dat}. O módulo \texttt{MailSystem} abstrai a estrutura do disco, sendo encarregado de escrever e ler os arquivos \texttt{.ibemail} cifrados, roteando mensagens entre as pastas de recebidos (\texttt{inbox/}) e enviados (\texttt{sent/}).
+    
+    \item \textbf{\texttt{src/gui/}}: Envolve a classe \texttt{App}, que consome os serviços do núcleo do sistema para alimentar os painéis visuais do programa (Login, Caixa de Entrada, Envio de E-mails e Painel Administrativo). 
+    
+    \item \textbf{\texttt{data/}}: Pasta criada em tempo de execução que atua como banco de armazenamento físico. Nela residem os parâmetros públicos (\texttt{params.pub}), o segredo mestre isolado do PKG (\texttt{master.sec}), a base de identidades, as chaves privadas extraídas (\texttt{keys/}) e as estruturas de diretório de e-mail.
+\end{itemize}
