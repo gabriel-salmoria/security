@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <sys/stat.h>
+#include <filesystem>
 
 namespace ibemail {
 
@@ -26,10 +27,14 @@ void PKG::Initialize() {
     std::string master_sec_path = data_dir + "/master.sec";
     std::string params_pub_path = data_dir + "/params.pub";
 
+    std::filesystem::create_directories(data_dir + "/keys");
+
     std::ifstream f_sec(master_sec_path);
     std::ifstream f_pub(params_pub_path);
 
-    if (f_sec.good() && f_pub.good()) {
+    bool fresh_setup = !(f_sec.good() && f_pub.good());
+
+    if (!fresh_setup) {
         std::stringstream buf_sec, buf_pub;
         buf_sec << f_sec.rdbuf();
         buf_pub << f_pub.rdbuf();
@@ -47,6 +52,26 @@ void PKG::Initialize() {
         out_pub << utils::base64_encode(pub_params);
     }
     LoadRegistry();
+
+    // First run: seed a couple of pre-approved identities so the app is
+    // immediately usable for a demo, without a manual PKG approval step.
+    if (fresh_setup && registry.empty()) {
+        SeedDefaultUsers();
+    }
+}
+
+void PKG::SeedDefaultUsers() {
+    static const std::vector<std::string> default_users = {"alice@ufsc.br", "bob@ufsc.br"};
+    static const std::string default_password = "123123";
+
+    for (const auto& id : default_users) {
+        registry[id] = {hash::sha256_string(default_password), UserStatus::APPROVED};
+    }
+    SaveRegistry();
+
+    for (const auto& id : default_users) {
+        ExtractKey(id, default_password);
+    }
 }
 
 void PKG::LoadRegistry() {

@@ -41,6 +41,7 @@ public:
 private:
     void LoadRegistry();
     void SaveRegistry();
+    void SeedDefaultUsers();
     
     std::string data_dir;
     std::map<std::string, UserRecord> registry;

@@ -5,7 +5,7 @@ A aplicação foi submetida aos testes propostos para validar as propriedades fu
 
 \section{Registro e Autoridade de Chaves (PKG)}
 
-Diferente da infraestrutura de chaves públicas (PKI) tradicional baseada em certificados, no esquema IBE a chave privada deve ser gerada por uma autoridade central confiável (PKG -- \textit{Private Key Generator}).
+No esquema IBE, a chave privada é gerada por uma autoridade central confiável, o PKG (\textit{Private Key Generator}), e não por uma cadeia de certificados como na PKI tradicional.
 
 A Figura \ref{fig:registro} ilustra a tela inicial do \textit{IBE Mail}, onde o usuário solicita o registro de uma identidade arbitrária (por exemplo, um e-mail).
 
@@ -74,7 +74,7 @@ Ao abrir a caixa de entrada (\textit{Inbox}) do destinatário \texttt{lucas@gmai
 
 A implementação utiliza a transformação de Fujisaki-Okamoto (FO) para garantir que mensagens alteradas sejam ativamente rejeitadas no momento da decifragem, inviabilizando ataques de falsificação de texto cifrado.
 
-Para provar esta propriedade na prática, o arquivo original de uma mensagem foi deliberadamente alterado via editor de código (Figura \ref{fig:file_alteration}), modificando-se um caractere do cifrotexto (bloco $U$).
+Para provar esta propriedade na prática, o arquivo original de uma mensagem foi deliberadamente alterado via editor de código (Figura \ref{fig:file_alteration}), modificando-se um caractere do texto cifrado (bloco $U$).
 
 \begin{figure}[htb]
     \centering
@@ -88,7 +88,7 @@ Ao retornar para a interface do programa e tentar ler a mensagem adulterada, a v
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.9\textwidth]{images/9_cca2_rejection.png}
-    \caption{Rejeição imediata do cifrotexto devido a quebra de integridade (CCA2).}
+    \caption{Rejeição imediata do texto cifrado devido a quebra de integridade (CCA2).}
     \label{fig:cca2_rejection}
 \end{figure}
 

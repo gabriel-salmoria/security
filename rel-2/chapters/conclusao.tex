@@ -1,5 +1,31 @@
 \chapter{Conclusão}
 \label{cap:conclusao}
 
-O desenvolvimento deste trabalho confirmou de forma prática todas as proposições da literatura sobre Criptografia Baseada em Identidade do tipo Boneh-Franklin. 
-Ao integrar a matemática acadêmica de bilineariedade da PBC com as engenharias de software de aplicações visuais de usuário final (Dear ImGui), foi possível tangibilizar as vantagens do IBE frente às restrições do PKI tradicional, atingindo 100\% dos requisitos planejados.
+O desenvolvimento deste trabalho mostrou de forma prática as propriedades centrais do esquema
+FullIdent de Boneh-Franklin~\cite{boneh2001ibe}, cifragem sem contato prévio com o destinatário,
+extração de chaves mediada por um PKG, rejeição de textos cifrados adulterados por meio da
+transformação de Fujisaki-Okamoto~\cite{fujisaki1999secure}, e o suporte natural do IBE a
+identidades temporais e revogação. Ao integrar a matemática de emparelhamentos bilineares da
+PBC com uma interface pro usuario (Dear ImGui), foi possível ver as vantagens do IBE contra as
+restrições do PKI tradicional.
+
+O próprio modelo IBE, no entanto, carrega limitações que o IBE Mail não tenta resolver e que
+valem a pena registrar no texto. A mais importante é a custódia de chaves (Seção~\ref{sec:conceitos}):
+como o PKG do protótipo mantém o segredo mestre $s$ isolado em um único arquivo local, ele é
+capaz de recalcular a chave privada de qualquer usuario e ler qualquer mensagem do sistema.
+Boneh e Franklin propõem mitigar esse problema distribuindo o segredo mestre entre
+múltiplos PKGs por meio de compartilhamento de segredo (\textit{threshold cryptography}), de
+forma que nenhum servidor isolado seja capaz de extrair uma chave sozinho~\cite{boneh2001ibe};
+essa distribuição não foi implementada aqui (por razões de complexidade, fora do escopo de demonstração)
+e é a extensão mais natural do trabalho. Outras simplificações do protótipo, feitas deliberadamente 
+para manter o escopo compatível com a carga horária da disciplina, são, por exemplo, o uso dos parâmetros 
+de curva padrão da PBC (\texttt{a.param}), que não foram definidos para o nível de segurança recomendado na
+prática/literatura (Seção~\ref{sec:funcionamento}); a ausência de um canal seguro dedicado para a entrega
+da chave privada do PKG ao usuário, que hoje ocorre apenas por estarem no mesmo processo local;
+e a simulação de múltiplos usuários em uma única máquina, sem uma distribuição real de reede entre
+remetente, destinatário e PKG.
+
+Ainda assim, o experimento cumpriu o objetivo do trabalho, que é mostrar, com código executável, por
+que o IBE resolve o problema de distribuição de chaves públicas de um jeito estruturalmente
+diferente do PKI, e onde exatamente essa solução se apoia (na dificuldade do problema BDH e na
+transformação de Fujisaki-Okamoto) e onde ela ainda deixa a desejar (na custódia de chaves).

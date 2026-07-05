@@ -105,6 +105,9 @@ void App::RenderInboxTab() {
         private_key.clear();
         current_user_id.clear();
         reading_email = std::nullopt;
+        selected_msg_id.clear();
+        reading_sent = std::nullopt;
+        selected_sent_id.clear();
         return;
     }
 

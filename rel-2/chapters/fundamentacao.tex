@@ -40,11 +40,25 @@ A segurança do IBE é avaliada em dois níveis~\cite{boneh2001ibe}:
 
   \item \textbf{IND-ID-CCA}: além das consultas de chaves, o adversário pode submeter textos cifrados a
     um oráculo de decifração (exceto o texto desafio). Essa noção mais forte é satisfeita pelo
-    FullIdent, por meio de um teste de rejeição que impede a aceitação de cifrotextos modificados.
+    FullIdent, por meio de um teste de rejeição que impede a aceitação de textos cifrados modificados.
 \end{itemize}
 
 A diferença entre BasicIdent e FullIdent está na adição de duas funções de hash auxiliares
-($H_3$ e $H_4$) e de um teste de consistência na decifração, a \textit{Fujisaki-Okamoto transform}~\cite{boneh2001ibe}.
+($H_3$ e $H_4$) e de um teste de consistência na decifração, a \textit{Fujisaki-Okamoto
+transform}~\cite{fujisaki1999secure,boneh2001ibe}.
+
+O esquema BasicIdent apenas faz XOR da mensagem com $H_2(\hat{e}(Q_{\mathit{ID}},
+P_{\mathit{pub}})^r)$, o que torna o texto cifrado maleável. Um atacante que intercepta
+$C = \langle U, V \rangle$ pode inverter um bit qualquer de $V$ e obter um novo texto cifrado
+válido, cuja decifração é a mensagem original com o bit correspondente invertido. Se o
+atacante tiver acesso a um oráculo de decifração, como permite o jogo IND-ID-CCA, ele envia
+esse texto cifrado modificado, recebe de volta a mensagem alterada e desfaz a inversão para
+recuperar a mensagem original, sem nunca ter obtido a chave privada~\cite{menezes2009intro}.
+Esse é precisamente o ataque que o FullIdent bloqueia: qualquer alteração em $U$, $V$ ou $W$
+faz com que o $\sigma'$ recuperado na decifração seja diferente do $\sigma$ original, o que
+propaga um $r'$ inconsistente e faz a verificação $U = r' \cdot P$ falhar (ver
+Seção~\ref{sec:fullident}). O oráculo de decifração deixa de ser útil ao atacante porque ele só
+responde a textos cifrados que já eram válidos.
 
 \subsection{Comparação com PKI e Custódia de Chaves}
 
@@ -91,15 +105,33 @@ que satisfaz as seguintes propriedades~\cite{menezes2009intro,boneh2001ibe}:
     para quaisquer $P, Q \in G_1$.
 \end{itemize}
 
-Para curvas do Tipo A, usamos o emparelhamento de Weil modificado (ou de
-Tate)~\cite{menezes2009intro}. O grau de imersão baixo ($k=2$) torna o emparelhamento
-eficientemente computável, sem comprometer a dificuldade do logaritmo discreto em
-$G_1$~\cite{menezes2009intro}.
+A construção original de Boneh-Franklin usa o emparelhamento de Weil modificado sobre curvas
+supersingulares~\cite{boneh2001ibe}. Na prática, porém, o emparelhamento de Tate é preferido:
+os próprios Boneh e Franklin observam que tanto a cifragem quanto a decifragem do FullIdent
+podem ser aceleradas usando Tate em vez de Weil~\cite{boneh2001ibe}, e é essa família de
+emparelhamentos (Tate e suas variantes mais rápidas, como o emparelhamento $\eta$) que a
+literatura de implementação recomenda e que bibliotecas como a PBC de fato calculam para
+curvas do Tipo A~\cite{menezes2009intro}. O grau de imersão baixo ($k=2$) torna esse cálculo
+eficiente, sem comprometer a dificuldade do logaritmo discreto em $G_1$~\cite{menezes2009intro}.
 
 Neste trabalho, usamos a biblioteca PBC (\textit{Pairing-Based Cryptography})~\cite{pbc} para
 os emparelhamentos, com os parâmetros padrão \texttt{a.param} da própria biblioteca.
 
 \subsection{O Problema Bilinear de Diffie-Hellman (BDH)}
+
+O FullIdent não se apoia diretamente no problema computacional de Diffie-Hellman (CDH) em
+$G_1$, como fazem os esquemas clássicos baseados em curvas elípticas, porque o próprio
+emparelhamento bilinear destrói a dificuldade do problema \emph{decisional} de Diffie-Hellman
+(DDH) nesse grupo. Dado $(P, aP, bP, cP)$, basta testar se $\hat{e}(P, cP) = \hat{e}(aP, bP)$
+para decidir se $c \equiv ab \pmod q$, já que por bilinearidade $\hat{e}(P, cP) =
+\hat{e}(P,P)^c$ e $\hat{e}(aP, bP) = \hat{e}(P,P)^{ab}$. Assim, o DDH em $G_1$ passa a ser
+fácil de resolver assim que existe um emparelhamento eficiente sobre esse
+grupo~\cite{boneh2001ibe,menezes2009intro}, e esquemas como o Cramer-Shoup, que dependem da
+dificuldade de DDH para atingir segurança CCA, não podem ser usados diretamente sobre $G_1$
+por esse motivo. O CDH em $G_1$ (encontrar $abP$) segue acreditado como difícil, mas isso não é
+suficiente para as reduções de segurança do FullIdent, que passam pelo emparelhamento;
+por isso Boneh e Franklin definem um problema novo, o BDH, adaptado exatamente às
+propriedades do emparelhamento.
 
 O problema BDH é definido como~\cite{boneh2001ibe}: dado $(P, aP, bP, cP) \in G_1^4$, com
 $a, b, c \in \mathbb{Z}_q^*$ escolhidos uniformemente ao acaso, calcular $\hat{e}(P, P)^{abc}

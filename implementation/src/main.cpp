@@ -5,8 +5,9 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_opengl3.h>
 #include <iostream>
+#include <fstream>
 
-int main(int argc, char** argv) {
+int main() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         std::cerr << "Error: " << SDL_GetError() << std::endl;
         return -1;
@@ -29,8 +30,22 @@ int main(int argc, char** argv) {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    // --- Load a nicer font ---
-    io.Fonts->AddFontFromFileTTF("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16.0f);
+    // --- Load a nicer font, if available (path varies by distro) ---
+    static const char* font_candidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", // Debian/Ubuntu
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",             // Arch
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",          // Fedora
+    };
+    bool font_loaded = false;
+    for (const char* path : font_candidates) {
+        std::ifstream f(path);
+        if (f.good()) {
+            io.Fonts->AddFontFromFileTTF(path, 16.0f);
+            font_loaded = true;
+            break;
+        }
+    }
+    if (!font_loaded) io.Fonts->AddFontDefault();
 
     // --- Custom dark-teal theme ---
     ImGui::StyleColorsDark();
