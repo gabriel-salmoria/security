@@ -189,34 +189,3 @@ O uso da aplicação segue os passos abaixo:
     Mensagens cifradas para identidades com período expirado ficam inacessíveis, já que não é
     mais possível obter a chave.
 \end{enumerate}
-
-\section{Resultados da Implementação}
-\label{sec:resultados_implementacao}
-
-O sistema foi inteiramente implementado conforme a arquitetura descrita nas seções anteriores, passando por seis fases iterativas de desenvolvimento. A implementação está dividida nos três pilares planejados (\texttt{common}, \texttt{core} e \texttt{gui}) utilizando C++17 e um \texttt{Makefile} unificado na raiz do projeto.
-
-No pilar de primitivas (\texttt{common}), os algoritmos do FullIdent foram perfeitamente codificados sobre a biblioteca PBC, demonstrando um fluxo de criptografia seguro que respeita as regras matemáticas da curva elíptica supersingular e dos oráculos aleatórios através da separação de domínio (usando SHA-256 no OpenSSL).
-
-O pilar visual (\texttt{gui}), construído com Dear ImGui e SDL2, revelou-se um ponto forte do trabalho, permitindo uma demonstração prática bastante tangível das propriedades do IBE. A interface foi aprimorada com um tema gráfico customizado de alto contraste, e as caixas de correio foram expandidas em relação ao planejamento original com a adição de uma aba \textit{Sent} (Enviados), que exibe apenas os metadados das mensagens emitidas, uma vez que o remetente não possui a chave do destinatário para decifrá-las.
-
-Durante o desenvolvimento prático da validação IND-ID-CCA2, foi identificado um desafio arquitetural na decodificação: a função de conversão Base64 quebrava o programa (lançando uma exceção nativa no sistema operacional) quando um caractere era forjado antes mesmo de chegar à etapa de verificação de Fujisaki-Okamoto no motor matemático. O problema foi sanado envelopando a lógica de leitura e decifragem com blocos \texttt{try/catch} para suportar cifrotextos corrompidos, fazendo com que a interface capture o erro de forma tolerante a falhas, demonstrando assim a rejeição do cifrotexto e exibindo a mensagem visual ao usuário.
-
-\section{Testes de Validação Prática}
-\label{sec:testes_praticos}
-
-A aplicação foi submetida aos testes propostos para validar as propriedades fundamentais do esquema FullIdent em um cenário prático.
-
-\subsection{Identidades Temporais}
-
-Para validar a cifragem direcionada a chaves que ainda não existem, uma mensagem foi enviada para \texttt{bob@ufsc.br|2026-12} através do modal de envio (função Encrypt). A mensagem foi gerada corretamente. Na aba do PKG Admin, autorizou-se este novo registro. Somente após a aprovação e subsequente extração (Extract) a mensagem pôde ser visualizada, comprovando que o uso de e-mail é totalmente assíncrono e dissociado de trocas de certificados.
-
-\subsection{Rejeição CCA2 e Revogação}
-
-Modificando diretamente o arquivo físico \texttt{.ibemail} de uma mensagem em disco na máquina, alterou-se manualmente um caractere na linha $U$. Ao recarregar a mensagem pela interface, o IBE Mail verificou corretamente a falha na identidade $U \neq r' \cdot P$ e retornou um erro imediato de decifragem, comprovando a resiliência CCA2 de Fujisaki-Okamoto sob Criptografia Baseada em Identidade.
-Da mesma forma, foi comprovado que a ação de revogação no painel Admin deleta instantaneamente os fragmentos das chaves em disco associados à identidade suspensa.
-
-\section{Conclusão}
-\label{sec:conclusao}
-
-O desenvolvimento deste trabalho confirmou de forma prática todas as proposições da literatura sobre Criptografia Baseada em Identidade do tipo Boneh-Franklin. 
-Ao integrar a matemática acadêmica de bilineariedade da PBC com as engenharias de software de aplicações visuais de usuário final (Dear ImGui), foi possível tangibilizar as vantagens do IBE frente às restrições do PKI tradicional, atingindo 100\% dos requisitos planejados.

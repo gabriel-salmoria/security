@@ -1,9 +1,13 @@
-\chapter{Resultados}
+\chapter{Resultados e Validação Prática}
 \label{cap:resultados}
 
-\section{Demonstração}
-\label{sec:demonstracao}
+A aplicação foi submetida aos testes propostos para validar as propriedades fundamentais do esquema FullIdent em um cenário prático.
 
-\section{Discussão}
-\label{sec:discussao}
+\section{Identidades Temporais}
 
+Para validar a cifragem direcionada a chaves que ainda não existem, uma mensagem foi enviada para \texttt{bob@ufsc.br|2026-12} através do modal de envio (função Encrypt). A mensagem foi gerada corretamente. Na aba do PKG Admin, autorizou-se este novo registro. Somente após a aprovação e subsequente extração (Extract) a mensagem pôde ser visualizada, comprovando que o uso de e-mail é totalmente assíncrono e dissociado de trocas de certificados.
+
+\section{Rejeição CCA2 e Revogação}
+
+Modificando diretamente o arquivo físico \texttt{.ibemail} de uma mensagem em disco na máquina, alterou-se manualmente um caractere na linha $U$. Ao recarregar a mensagem pela interface, o IBE Mail verificou corretamente a falha na identidade $U \neq r' \cdot P$ e retornou um erro imediato de decifragem, comprovando a resiliência CCA2 de Fujisaki-Okamoto sob Criptografia Baseada em Identidade.
+Da mesma forma, foi comprovado que a ação de revogação no painel Admin deleta instantaneamente os fragmentos das chaves em disco associados à identidade suspensa.

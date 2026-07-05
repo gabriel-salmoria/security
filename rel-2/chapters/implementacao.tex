@@ -1,9 +1,10 @@
 \chapter{Implementação}
 \label{cap:implementacao}
 
-\section{Arquitetura e Ferramentas}
-\label{sec:arquitetura}
+O sistema foi inteiramente implementado conforme a arquitetura descrita nas seções anteriores, passando por seis fases iterativas de desenvolvimento. A implementação está dividida nos três pilares planejados (\texttt{common}, \texttt{core} e \texttt{gui}) utilizando C++17 e um \texttt{Makefile} unificado na raiz do projeto.
 
-\section{Desenvolvimento}
-\label{sec:desenvolvimento}
+No pilar de primitivas (\texttt{common}), os algoritmos do FullIdent foram perfeitamente codificados sobre a biblioteca PBC, demonstrando um fluxo de criptografia seguro que respeita as regras matemáticas da curva elíptica supersingular e dos oráculos aleatórios através da separação de domínio (usando SHA-256 no OpenSSL).
 
+O pilar visual (\texttt{gui}), construído com Dear ImGui e SDL2, revelou-se um ponto forte do trabalho, permitindo uma demonstração prática bastante tangível das propriedades do IBE. A interface foi aprimorada com um tema gráfico customizado de alto contraste, e as caixas de correio foram expandidas em relação ao planejamento original com a adição de uma aba \textit{Sent} (Enviados), que exibe apenas os metadados das mensagens emitidas, uma vez que o remetente não possui a chave do destinatário para decifrá-las.
+
+Durante o desenvolvimento prático da validação IND-ID-CCA2, foi identificado um desafio arquitetural na decodificação: a função de conversão Base64 quebrava o programa (lançando uma exceção nativa no sistema operacional) quando um caractere era forjado antes mesmo de chegar à etapa de verificação de Fujisaki-Okamoto no motor matemático. O problema foi sanado envelopando a lógica de leitura e decifragem com blocos \texttt{try/catch} para suportar cifrotextos corrompidos, fazendo com que a interface capture o erro de forma tolerante a falhas, demonstrando assim a rejeição do cifrotexto e exibindo a mensagem visual ao usuário.
