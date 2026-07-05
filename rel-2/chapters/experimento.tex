@@ -1,0 +1,222 @@
+\chapter{Experimento}
+\label{cap:experimento}
+
+\section{Descrição do Experimento}
+\label{sec:descricao}
+
+O experimento é a implementação do \textbf{IBE Mail}: uma aplicação de e-mail com interface
+gráfica que demonstra o esquema FullIdent de ponta a ponta. A aplicação roda com múltiplas
+identidades na mesma máquina e tem um PKG embutido para registro, autenticação e extração de
+chaves. Não há servidor separado. O PKG faz parte da própria aplicação.
+
+\subsection{O que demonstramos}
+
+O objetivo é mostrar, na prática, que o IBE funciona como descrito:
+
+\begin{enumerate}
+  \item Cifrar para \texttt{alice@ufsc.br} sem precisar de nenhuma chave pública de Alice
+    antecipadamente.
+
+  \item Ver a decifração falhar com a chave errada, com o erro visível na interface.
+
+  \item Revogar uma identidade no PKG, bloqueando novas extrações de chave para ela.
+
+  \item Cifrar para \texttt{alice@ufsc.br|2026-06}, de forma que Alice só consegue decifrar
+    se tiver obtido a chave do período correspondente.
+\end{enumerate}
+
+\subsection{Arquitetura da Aplicação}
+
+A aplicação é escrita em C++17 e dividida em três partes. Em \texttt{src/common/} ficam os
+quatro algoritmos do FullIdent, as funções de hash $H_1$--$H_4$, serialização de elementos de
+curva e operações auxiliares (XOR, UUID, base64). Em \texttt{src/core/} estão o PKG,
+o registro de identidades (\texttt{registry.dat}), as caixas de correio e o formato de mensagem
+\texttt{.ibemail}. Em \texttt{src/gui/} fica a interface gráfica, construída com Dear ImGui
+sobre SDL2 e OpenGL 3.
+
+Usamos as seguintes bibliotecas externas: PBC~\cite{pbc} (emparelhamentos bilineares), GMP
+(aritmética de precisão arbitrária), OpenSSL/libcrypto (SHA-256), Dear ImGui (GUI), SDL2
+(janela e entrada) e OpenGL 3 (renderização).
+
+\subsection{Formato de Mensagem (\texttt{.ibemail})}
+
+Cada mensagem é armazenada em disco como arquivo texto com cabeçalhos e blocos cifrados em
+base64:
+
+\begin{verbatim}
+IBE-MAIL/1.0
+Message-ID: 550e8400-e29b-41d4-a716-446655440000
+From: alice@ufsc.br
+To: bob@ufsc.br
+Date: 2026-06-21T14:30:22
+---
+U: <base64 do ponto G1>
+V: <base64 de n bytes>
+W: <base64 de n bytes>
+\end{verbatim}
+
+Assunto e corpo vão cifrados dentro da mensagem, sem aparecer no envelope.
+
+\subsection{Registro de Identidades (\texttt{registry.dat})}
+
+O PKG mantém um arquivo com as identidades cadastradas, suas senhas em SHA-256 e se foram
+aprovadas:
+
+\begin{verbatim}
+alice@ufsc.br   a665a...ae3   approved
+bob@ufsc.br     5e884...d8    approved
+carol@ufsc.br   <hash>        pending
+\end{verbatim}
+
+Um novo usuário se registra com identidade e senha; o PKG aprova o cadastro pelo painel de
+gerenciamento. Apenas usuários aprovados podem obter sua chave privada.
+
+% ---
+
+\section{Pseudocódigo}
+\label{sec:pseudocodigo}
+
+Os pseudocódigos a seguir descrevem as operações principais da aplicação.
+
+\subsection{Inicialização do Sistema (Setup)}
+
+\begin{algorithm}[H]
+\caption{IBE Mail -- Setup}
+\begin{algorithmic}[1]
+\Procedure{Setup}{}
+  \State Carregar parâmetros Tipo A da biblioteca PBC (\texttt{a.param})
+  \State Inicializar grupo $G_1$ de ordem $q$ com gerador $P$
+  \State Escolher $s \xleftarrow{\$} \mathbb{Z}_q^*$ \Comment{segredo mestre}
+  \State Calcular $P_{\mathit{pub}} \leftarrow s \cdot P$
+  \State Serializar e salvar \textit{params} em \texttt{data/params.pub} (base64)
+  \State Serializar e salvar $s$ em \texttt{data/master.sec} (base64)
+  \State Criar diretórios \texttt{data/keys/}, \texttt{data/mail/inbox/}, \texttt{data/mail/sent/}
+  \State Inicializar \texttt{data/registry.dat} vazio
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Extração de Chave Privada (Extract)}
+
+\begin{algorithm}[H]
+\caption{IBE Mail -- Extract}
+\begin{algorithmic}[1]
+\Procedure{Extract}{$\mathit{ID}$, $\mathit{password}$}
+  \State Carregar registro de \texttt{data/registry.dat}
+  \If{$\mathit{ID}$ não está no registro ou status $\neq$ \textit{approved}}
+    \Return $\perp$
+  \EndIf
+  \If{$\mathit{SHA256}(\mathit{password}) \neq \text{hash armazenado}$}
+    \Return $\perp$ \Comment{autenticação falhou}
+  \EndIf
+  \State Carregar $s$ de \texttt{data/master.sec}
+  \State Carregar \textit{params} de \texttt{data/params.pub}
+  \State $Q_{\mathit{ID}} \leftarrow H_1(\mathit{ID})$ \Comment{\texttt{element\_from\_hash} da PBC}
+  \State $d_{\mathit{ID}} \leftarrow s \cdot Q_{\mathit{ID}}$
+  \State Serializar e salvar $d_{\mathit{ID}}$ em \texttt{data/keys/}\textit{ID}\texttt{.prv}
+  \Return $d_{\mathit{ID}}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Cifragem de Mensagem (Encrypt)}
+
+\begin{algorithm}[H]
+\caption{IBE Mail -- Encrypt}
+\begin{algorithmic}[1]
+\Procedure{Encrypt}{$\mathit{ID}_{\mathit{dest}}$, $M$}
+  \State Carregar \textit{params} de \texttt{data/params.pub}
+  \State $Q_{\mathit{ID}} \leftarrow H_1(\mathit{ID}_{\mathit{dest}})$
+  \State Escolher $\sigma \xleftarrow{\$} \{0,1\}^n$
+  \State $r \leftarrow H_3(\sigma, M)$
+  \State $U \leftarrow r \cdot P$
+  \State $V \leftarrow \sigma \oplus H_2\!\left(\hat{e}(Q_{\mathit{ID}},\, P_{\mathit{pub}})^r\right)$
+  \State $W \leftarrow M \oplus H_4(\sigma)$
+  \State $\mathit{uuid} \leftarrow \text{gerar UUID v4}$
+  \State Escrever arquivo \texttt{data/mail/inbox/}\textit{ID\_dest}\texttt{/}\textit{uuid}\texttt{.ibemail}
+  \State Escrever cópia em \texttt{data/mail/sent/}\textit{ID\_orig}\texttt{/}\textit{uuid}\texttt{.ibemail}
+  \Return $\langle U, V, W \rangle$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Decifração de Mensagem (Decrypt)}
+
+\begin{algorithm}[H]
+\caption{IBE Mail -- Decrypt}
+\begin{algorithmic}[1]
+\Procedure{Decrypt}{$\langle U, V, W \rangle$, $d_{\mathit{ID}}$}
+  \If{$d_{\mathit{ID}}$ não está carregada}
+    \Return $\perp$ \Comment{usuário não possui chave privada}
+  \EndIf
+  \State $\sigma' \leftarrow V \oplus H_2(\hat{e}(d_{\mathit{ID}},\, U))$
+  \State $M' \leftarrow W \oplus H_4(\sigma')$
+  \State $r' \leftarrow H_3(\sigma', M')$
+  \If{$U \neq r' \cdot P$}
+    \Return $\perp$ \Comment{verificação falhou: chave incorreta ou cifrotexto inválido}
+  \EndIf
+  \Return $M'$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Fluxo de Uso da Interface}
+
+O uso da aplicação segue os passos abaixo:
+
+\begin{enumerate}
+  \item \textbf{Registro.} O usuário preenche identidade e senha no modal de registro.
+    O PKG registra o usuário como pendente.
+
+  \item \textbf{Aprovação.} O administrador aprova o cadastro no painel do PKG, mudando
+    o status para \textit{approved}.
+
+  \item \textbf{Obtenção de chave.} O usuário informa sua senha no painel esquerdo. A
+    aplicação executa o Extract e salva $d_{\mathit{ID}}$ em disco; a chave fica
+    disponível na sessão.
+
+  \item \textbf{Envio de mensagem.} Pelo modal de composição, o remetente informa a identidade
+    do destinatário, assunto e corpo. A aplicação executa o Encrypt e o arquivo
+    \texttt{.ibemail} vai para a caixa de entrada do destinatário.
+
+  \item \textbf{Leitura.} Ao selecionar uma mensagem no painel central, a aplicação executa o
+    Decrypt com a chave do usuário ativo. O texto decifrado aparece no painel direito, com um
+    indicador \textit{Decifrado com alice@ufsc.br}. Se a decifração falhar, a interface mostra
+    um erro.
+
+  \item \textbf{Revogação.} O administrador revoga uma identidade no painel do PKG. O status
+    muda para \textit{revoked}, o PKG apaga a chave do disco e bloqueia novas extrações.
+    Mensagens cifradas para identidades com período expirado ficam inacessíveis, já que não é
+    mais possível obter a chave.
+\end{enumerate}
+
+\section{Resultados da Implementação}
+\label{sec:resultados_implementacao}
+
+O sistema foi inteiramente implementado conforme a arquitetura descrita nas seções anteriores, passando por seis fases iterativas de desenvolvimento. A implementação está dividida nos três pilares planejados (\texttt{common}, \texttt{core} e \texttt{gui}) utilizando C++17 e um \texttt{Makefile} unificado na raiz do projeto.
+
+No pilar de primitivas (\texttt{common}), os algoritmos do FullIdent foram perfeitamente codificados sobre a biblioteca PBC, demonstrando um fluxo de criptografia seguro que respeita as regras matemáticas da curva elíptica supersingular e dos oráculos aleatórios através da separação de domínio (usando SHA-256 no OpenSSL).
+
+O pilar visual (\texttt{gui}), construído com Dear ImGui e SDL2, revelou-se um ponto forte do trabalho, permitindo uma demonstração prática bastante tangível das propriedades do IBE. A interface foi aprimorada com um tema gráfico customizado de alto contraste, e as caixas de correio foram expandidas em relação ao planejamento original com a adição de uma aba \textit{Sent} (Enviados), que exibe apenas os metadados das mensagens emitidas, uma vez que o remetente não possui a chave do destinatário para decifrá-las.
+
+Durante o desenvolvimento prático da validação IND-ID-CCA2, foi identificado um desafio arquitetural na decodificação: a função de conversão Base64 quebrava o programa (lançando uma exceção nativa no sistema operacional) quando um caractere era forjado antes mesmo de chegar à etapa de verificação de Fujisaki-Okamoto no motor matemático. O problema foi sanado envelopando a lógica de leitura e decifragem com blocos \texttt{try/catch} para suportar cifrotextos corrompidos, fazendo com que a interface capture o erro de forma tolerante a falhas, demonstrando assim a rejeição do cifrotexto e exibindo a mensagem visual ao usuário.
+
+\section{Testes de Validação Prática}
+\label{sec:testes_praticos}
+
+A aplicação foi submetida aos testes propostos para validar as propriedades fundamentais do esquema FullIdent em um cenário prático.
+
+\subsection{Identidades Temporais}
+
+Para validar a cifragem direcionada a chaves que ainda não existem, uma mensagem foi enviada para \texttt{bob@ufsc.br|2026-12} através do modal de envio (função Encrypt). A mensagem foi gerada corretamente. Na aba do PKG Admin, autorizou-se este novo registro. Somente após a aprovação e subsequente extração (Extract) a mensagem pôde ser visualizada, comprovando que o uso de e-mail é totalmente assíncrono e dissociado de trocas de certificados.
+
+\subsection{Rejeição CCA2 e Revogação}
+
+Modificando diretamente o arquivo físico \texttt{.ibemail} de uma mensagem em disco na máquina, alterou-se manualmente um caractere na linha $U$. Ao recarregar a mensagem pela interface, o IBE Mail verificou corretamente a falha na identidade $U \neq r' \cdot P$ e retornou um erro imediato de decifragem, comprovando a resiliência CCA2 de Fujisaki-Okamoto sob Criptografia Baseada em Identidade.
+Da mesma forma, foi comprovado que a ação de revogação no painel Admin deleta instantaneamente os fragmentos das chaves em disco associados à identidade suspensa.
+
+\section{Conclusão}
+\label{sec:conclusao}
+
+O desenvolvimento deste trabalho confirmou de forma prática todas as proposições da literatura sobre Criptografia Baseada em Identidade do tipo Boneh-Franklin. 
+Ao integrar a matemática acadêmica de bilineariedade da PBC com as engenharias de software de aplicações visuais de usuário final (Dear ImGui), foi possível tangibilizar as vantagens do IBE frente às restrições do PKI tradicional, atingindo 100\% dos requisitos planejados.

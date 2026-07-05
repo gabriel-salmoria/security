@@ -15,9 +15,9 @@ section=TITLE,
 
 \addbibresource{references.bib}
 
-\autor{Gabriel Salmoria}
-\titulo{[Título do Trabalho]}
-\tipotrabalho{Relatório Completo}
+\autor{Gabriel Salmoria \\ Lucas de Souza Vieira}
+\titulo{IBE Mail: Criptografia Baseada em Identidade com o Esquema de Boneh-Franklin}
+\tipotrabalho{Relatório Final}
 \local{Florianópolis -- SC}
 \ano{2026}
 \data{Julho de 2026}
@@ -31,10 +31,10 @@ section=TITLE,
 \hypersetup{
     pdfcreator={LaTeX with abnTeX2 for UFSC},
     pdftitle={\imprimirtitulo},
-    pdfauthor={\imprimirautor},
+    pdfauthor={Gabriel Salmoria e Lucas de Souza Vieira},
 }
 
-\input{../rel-1/settings.tex}
+\input{settings.tex}
 
 \newif\ifforcedinclude\forcedincludefalse
 \emergencystretch=5em
@@ -52,9 +52,7 @@ section=TITLE,
 
     \include{chapters/introducao}
     \include{chapters/fundamentacao}
-    \include{chapters/implementacao}
-    \include{chapters/resultados}
-    \include{chapters/conclusao}
+    \include{chapters/experimento}
 
     \postextual
     \setlength\beforechapskip{0pt}
@@ -63,6 +61,8 @@ section=TITLE,
 
     \begingroup
         \setlength\bibitemsep{\baselineskip}
+        \nocite{claude2026ai}
+        \nocite{gemini2026ai}
         \printbibliography[title=REFERÊNCIAS]
     \endgroup
 

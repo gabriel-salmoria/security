@@ -1,12 +1,247 @@
 \chapter{Fundamentação Teórica}
 \label{cap:fundamentacao}
 
-\section{Conceitos de Segurança}
+\section{Criptografia Baseada em Identidade}
 \label{sec:conceitos}
 
-\section{Funcionamento do Esquema}
+\subsection{Definição Formal}
+
+Um esquema IBE é formado por quatro algoritmos~\cite{boneh2001ibe}:
+
+\begin{itemize}
+  \item \textbf{Setup}$(1^\lambda)$: recebe o parâmetro de segurança $\lambda$ e produz os
+    parâmetros públicos \textit{params} e o segredo mestre $\mathit{msk}$. Os parâmetros são
+    publicados; o segredo fica com o PKG.
+
+  \item \textbf{Extract}$(\mathit{params}, \mathit{msk}, \mathit{ID})$: dado um identificador
+    $\mathit{ID} \in \{0,1\}^*$, o PKG computa e entrega ao usuário sua chave privada
+    $d_{\mathit{ID}}$, após verificar sua identidade.
+
+  \item \textbf{Encrypt}$(\mathit{params}, \mathit{ID}, M)$: cifra a mensagem $M$ para o
+    destinatário com identidade $\mathit{ID}$, produzindo o texto cifrado $C$.
+
+  \item \textbf{Decrypt}$(\mathit{params}, d_{\mathit{ID}}, C)$: usando a chave privada
+    $d_{\mathit{ID}}$, decifra $C$ e recupera $M$, ou retorna $\perp$ em caso de falha.
+\end{itemize}
+
+O ponto central é que qualquer um pode cifrar para uma identidade $\mathit{ID}$ conhecendo
+apenas os parâmetros públicos, sem certificados e sem contato prévio com o
+destinatário~\cite{franklin2008nist}.
+
+\subsection{Noções de Segurança}
+
+A segurança do IBE é avaliada em dois níveis~\cite{boneh2001ibe}:
+
+\begin{itemize}
+  \item \textbf{IND-ID-CPA}: o adversário pode consultar chaves privadas de quaisquer identidades,
+    exceto a identidade-alvo $\mathit{ID}^*$, e recebe o texto cifrado de uma das duas mensagens de
+    sua escolha. Sua vantagem em distingui-las deve ser desprezível. O esquema BasicIdent de Boneh
+    e Franklin satisfaz essa noção.
+
+  \item \textbf{IND-ID-CCA}: além das consultas de chaves, o adversário pode submeter textos cifrados a
+    um oráculo de decifração (exceto o texto desafio). Essa noção mais forte é satisfeita pelo
+    FullIdent, por meio de um teste de rejeição que impede a aceitação de cifrotextos modificados.
+\end{itemize}
+
+A diferença entre BasicIdent e FullIdent está na adição de duas funções de hash auxiliares
+($H_3$ e $H_4$) e de um teste de consistência na decifração, a \textit{Fujisaki-Okamoto transform}~\cite{boneh2001ibe}.
+
+\subsection{Comparação com PKI e Custódia de Chaves}
+
+Em relação à PKI, o IBE não precisa de Autoridades Certificadoras nem
+de certificados. Qualquer um pode cifrar para uma identidade mesmo que o destinatário ainda não
+tenha se registrado, já que as mensagens ficam esperando até que ele obtenha sua chave
+privada junto ao PKG~\cite{franklin2008nist}.
+
+O lado negativo é que o PKG conhece o segredo mestre $s$ e pode calcular a chave privada de
+qualquer usuário e, com isso, ler qualquer mensagem do sistema. Esse problema se chama
+\textit{custódia de chaves} (\textit{key escrow}) e é uma limitação do modelo IBE em
+geral~\cite{franklin2008nist}.
+
+% ---
+
+\section{Fundamentos Matemáticos}
 \label{sec:funcionamento}
+
+\subsection{Curvas Elípticas e Grupos}
+
+Uma curva elíptica $E$ sobre um corpo finito $\mathbb{F}_p$ ($p$ primo) é o conjunto de pontos
+$(x, y) \in \mathbb{F}_p^2$ satisfazendo uma equação da forma $y^2 = x^3 + ax + b$, juntamente
+com o ponto no infinito $\mathcal{O}$~\cite{menezes2009intro}. Os pontos de $E(\mathbb{F}_p)$
+formam um grupo abeliano com a lei de adição de pontos. O esquema FullIdent utiliza uma curva
+supersingular do \textbf{Tipo A}: $y^2 = x^3 + x$ sobre $\mathbb{F}_p$, com grau de imersão
+$k = 2$, o que significa que o grupo de chegada do emparelhamento vive em $\mathbb{F}_{p^2}$.
+
+O grupo $G_1$ é um subgrupo cíclico de $E(\mathbb{F}_p)$ de ordem prima $q$, gerado por um
+ponto $P$. O grupo alvo é $G_T$, um subgrupo multiplicativo de ordem $q$ em
+$\mathbb{F}_{p^2}^*$.
+
+\subsection{Emparelhamentos Bilineares}
+
+Um \textbf{emparelhamento bilinear} é uma aplicação $\hat{e}: G_1 \times G_1 \rightarrow G_T$
+que satisfaz as seguintes propriedades~\cite{menezes2009intro,boneh2001ibe}:
+
+\begin{itemize}
+  \item \textbf{Bilinearidade}: para todos $P, Q \in G_1$ e $a, b \in \mathbb{Z}$:
+    \[ \hat{e}(aP,\, bQ) = \hat{e}(P,\, Q)^{ab}. \]
+
+  \item \textbf{Não-degenerescência}: existe $P \in G_1$ tal que $\hat{e}(P, P) \neq 1_{G_T}$.
+
+  \item \textbf{Computabilidade}: existe um algoritmo eficiente para calcular $\hat{e}(P, Q)$
+    para quaisquer $P, Q \in G_1$.
+\end{itemize}
+
+Para curvas do Tipo A, usamos o emparelhamento de Weil modificado (ou de
+Tate)~\cite{menezes2009intro}. O grau de imersão baixo ($k=2$) torna o emparelhamento
+eficientemente computável, sem comprometer a dificuldade do logaritmo discreto em
+$G_1$~\cite{menezes2009intro}.
+
+Neste trabalho, usamos a biblioteca PBC (\textit{Pairing-Based Cryptography})~\cite{pbc} para
+os emparelhamentos, com os parâmetros padrão \texttt{a.param} da própria biblioteca.
+
+\subsection{O Problema Bilinear de Diffie-Hellman (BDH)}
+
+O problema BDH é definido como~\cite{boneh2001ibe}: dado $(P, aP, bP, cP) \in G_1^4$, com
+$a, b, c \in \mathbb{Z}_q^*$ escolhidos uniformemente ao acaso, calcular $\hat{e}(P, P)^{abc}
+\in G_T$.
+
+A hipótese BDH afirma que nenhum algoritmo probabilístico de tempo polinomial consegue resolver
+esse problema com vantagem não desprezível. A segurança do FullIdent depende diretamente dessa
+hipótese. Qualquer adversário que quebre o esquema pode ser convertido em um algoritmo que
+resolve BDH~\cite{boneh2001ibe}.
+
+% ---
+
+\section{O Esquema FullIdent}
+\label{sec:fullident}
+
+\subsection{Funções de Hash}
+
+FullIdent utiliza quatro funções de hash~\cite{boneh2001ibe}, sendo $n$ o comprimento em bits
+da mensagem:
+
+\begin{align*}
+  H_1 &: \{0,1\}^* \rightarrow G_1^* \\
+  H_2 &: G_T \rightarrow \{0,1\}^n \\
+  H_3 &: \{0,1\}^n \times \{0,1\}^n \rightarrow \mathbb{Z}_q^* \\
+  H_4 &: \{0,1\}^n \rightarrow \{0,1\}^n
+\end{align*}
+
+Neste trabalho, para $H_1$ usamos \texttt{element\_from\_hash} da biblioteca PBC (que
+internamente usa SHA-256 para mapear a identidade a um ponto de curva); $H_2$, $H_3$ e $H_4$
+são implementadas sobre SHA-256 com separação de domínio.
+
+\subsection{Algoritmos}
+
+\paragraph{Setup.} O PKG escolhe um grupo $G_1$ de ordem $q$ com gerador $P$, um escalar
+aleatório $s \in \mathbb{Z}_q^*$ (segredo mestre) e computa:
+\[ P_{\mathit{pub}} = s \cdot P \quad \in G_1. \]
+Os parâmetros públicos são $\mathit{params} = (G_1, G_T, \hat{e}, n, P, P_{\mathit{pub}},
+H_1, H_2, H_3, H_4)$.
+
+\paragraph{Extract.} Para uma identidade $\mathit{ID} \in \{0,1\}^*$, após autenticação do
+usuário, o PKG computa:
+\[ Q_{\mathit{ID}} = H_1(\mathit{ID}) \in G_1^*, \qquad d_{\mathit{ID}} = s \cdot Q_{\mathit{ID}} \in G_1^*. \]
+
+\paragraph{Encrypt.} Para cifrar $M \in \{0,1\}^n$ para o destinatário $\mathit{ID}$:
+\begin{enumerate}
+  \item Compute $Q_{\mathit{ID}} = H_1(\mathit{ID})$.
+  \item Escolha $\sigma \in \{0,1\}^n$ uniformemente ao acaso.
+  \item Compute $r = H_3(\sigma, M)$.
+  \item Compute as três componentes do texto cifrado $C = \langle U, V, W \rangle$:
+    \begin{align}
+      U &= r \cdot P, \label{eq:U}\\
+      V &= \sigma \oplus H_2\!\left(\hat{e}(Q_{\mathit{ID}},\, P_{\mathit{pub}})^r\right), \label{eq:V}\\
+      W &= M \oplus H_4(\sigma). \label{eq:W}
+    \end{align}
+\end{enumerate}
+
+\paragraph{Decrypt.} Para decifrar $C = \langle U, V, W \rangle$ com chave privada
+$d_{\mathit{ID}}$:
+\begin{enumerate}
+  \item Compute $\sigma' = V \oplus H_2(\hat{e}(d_{\mathit{ID}},\, U))$.
+  \item Compute $M' = W \oplus H_4(\sigma')$.
+  \item Compute $r' = H_3(\sigma', M')$.
+  \item \textbf{Verificação de consistência:} se $U \neq r' \cdot P$, retorne $\perp$.
+  \item Caso contrário, retorne $M'$.
+\end{enumerate}
+
+\subsection{Corretude}
+
+A decifração recupera $M$ corretamente por causa da bilinearidade do emparelhamento. Para um
+texto cifrado gerado com escalar $r$ e para o destinatário com chave privada
+$d_{\mathit{ID}} = s \cdot Q_{\mathit{ID}}$:
+
+\begin{align*}
+  \hat{e}(d_{\mathit{ID}},\, U)
+  &= \hat{e}(s \cdot Q_{\mathit{ID}},\, r \cdot P) \\
+  &= \hat{e}(Q_{\mathit{ID}},\, P)^{sr} \\
+  &= \hat{e}(Q_{\mathit{ID}},\, s \cdot P)^r \\
+  &= \hat{e}(Q_{\mathit{ID}},\, P_{\mathit{pub}})^r.
+\end{align*}
+
+Portanto, $H_2(\hat{e}(d_{\mathit{ID}}, U)) = H_2(\hat{e}(Q_{\mathit{ID}},
+P_{\mathit{pub}})^r)$, e a XOR com $V$ recupera $\sigma$ corretamente; a XOR de $W$ com
+$H_4(\sigma)$ recupera $M$; e a verificação $U = r' \cdot P$ é satisfeita.
+
+O teste de rejeição no passo 4 é o que impede ataques de texto cifrado escolhido. Qualquer
+modificação em $U$, $V$ ou $W$ produz um $\sigma'$ inválido, que por sua vez gera $r'$ e $M'$
+inconsistentes, fazendo com que $r' \cdot P \neq U$, e a decifração é
+abortada~\cite{boneh2001ibe}.
+
+\subsection{Identidades Temporais e Revogação}
+
+O IBE tem suporte natural a \textbf{identidades temporais}~\cite{franklin2008nist}. Em vez de
+usar \texttt{alice@ufsc.br} como identidade, é possível usar \texttt{alice@ufsc.br|2026-06}.
+Qualquer remetente pode cifrar para esse identificador, mas só Alice consegue decifrar se tiver
+obtido a chave do período correspondente junto ao PKG. Após o período expirar, a chave torna-se
+inútil automaticamente, sem precisar de listas de revogação.
+
+Além das identidades temporais, o PKG pode revogar uma identidade diretamente, passando seu
+status para \textit{revoked} no registro interno. Com isso, o PKG bloqueia novas extrações.
+Chaves já emitidas continuam válidas até o fim do período, o que é esperado em qualquer
+implementação de IBE~\cite{franklin2008nist}.
+
+% ---
 
 \section{Exemplo Ilustrativo}
 \label{sec:exemplo}
 
+Para entender melhor como o emparelhamento funciona na prática, vamos a um exemplo com
+números pequenos. Os parâmetros aqui são muito menores do que o necessário na prática e servem
+só para ilustração.
+
+Seja $G_1$ um subgrupo cíclico de ordem $q = 11$ com gerador $P$. Suponha:
+\begin{itemize}
+  \item Segredo mestre: $s = 3$, logo $P_{\mathit{pub}} = 3P$.
+  \item Identidade do destinatário: $\mathit{ID} = \texttt{bob@ufsc.br}$, com
+        $Q_{\mathit{ID}} = H_1(\mathit{ID}) = 5P$ (valor hipotético após o mapeamento).
+  \item Chave privada de Bob: $d_{\mathit{ID}} = 3 \cdot 5P = 15P$.
+        Como $15 \equiv 4 \pmod{11}$, tem-se $d_{\mathit{ID}} = 4P$.
+\end{itemize}
+
+O remetente escolhe $\sigma$ aleatório, computa $r = H_3(\sigma, M)$ e suponha $r = 2$. O
+valor de $V$ é obtido com:
+\[
+  \hat{e}(Q_{\mathit{ID}},\, P_{\mathit{pub}})^r
+  = \hat{e}(5P,\, 3P)^2
+  = \hat{e}(P,\, P)^{15 \cdot 2}
+  = \hat{e}(P,\, P)^{30}
+  \equiv \hat{e}(P,\, P)^{8} \pmod{q}.
+\]
+
+Na decifração, Bob computa:
+\[
+  \hat{e}(d_{\mathit{ID}},\, U)
+  = \hat{e}(4P,\, 2P)
+  = \hat{e}(P,\, P)^{4 \cdot 2}
+  = \hat{e}(P,\, P)^{8}.
+\]
+
+Os dois valores coincidem ($30 \equiv 8 \pmod{11}$), confirmando que Bob recupera $\sigma$
+corretamente. Caso Eve tente decifrar com uma chave $d_{\mathit{Eve}} = 7P$, ela obteria:
+\[
+  \hat{e}(7P,\, 2P) = \hat{e}(P,\, P)^{14} \equiv \hat{e}(P,\, P)^{3},
+\]
+que é distinto de $\hat{e}(P,P)^8$. O $\sigma'$ recuperado seria inválido, $r'$ e $M'$
+inconsistentes, e a verificação $U \stackrel{?}{=} r' \cdot P$ falharia, retornando $\perp$.
